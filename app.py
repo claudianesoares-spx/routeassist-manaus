@@ -137,9 +137,13 @@ st.markdown("### 🔍 Consulta Operacional de Rotas")
 id_motorista = st.text_input("Digite seu ID de motorista")
 
 if id_motorista:
-    url = "https://docs.google.com/spreadsheets/d/1F8HC2D8UxRc5R_QBdd-zWu7y6Twqyk3r0NTPN0HCWUI/export?format=xlsx"
-    df = pd.read_excel(url)
 
+    # ================= VARIÁVEIS PARA TROCAR =================
+    PLANILHA_URL = "<LINK_PLANILHA_MANAUS_AQUI>"
+    FORM_BASE_URL = "<LINK_FORM_MANAUS_AQUI>"
+    # ========================================================
+
+    df = pd.read_excel(PLANILHA_URL)
     df["ID"] = df["ID"].astype(str).str.strip()
     id_motorista = id_motorista.strip()
 
@@ -176,8 +180,7 @@ if id_motorista:
                     ].iterrows():
 
                         form_url = (
-                            "https://docs.google.com/forms/d/e/1FAIpQLSffKb0EPcHCRXv-XiHhgk-w2bTGbt179fJkr879jNdp-AbTxg/viewform"
-                            f"?usp=pp_url"
+                            f"{FORM_BASE_URL}?usp=pp_url"
                             f"&entry.392776957={id_motorista}"
                             f"&entry.1682939517={row['Rota']}"
                             f"&entry.2002352354={row['Placa']}"
@@ -212,8 +215,7 @@ if id_motorista:
                     ].iterrows():
 
                         form_url = (
-                            "https://docs.google.com/forms/d/e/1FAIpQLSffKb0EPcHCRXv-XiHhgk-w2bTGbt179fJkr879jNdp-AbTxg/viewform"
-                            f"?usp=pp_url"
+                            f"{FORM_BASE_URL}?usp=pp_url"
                             f"&entry.392776957={id_motorista}"
                             f"&entry.1682939517={row['Rota']}"
                             f"&entry.2002352354={row['Placa']}"
