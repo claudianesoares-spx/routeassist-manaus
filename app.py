@@ -98,11 +98,9 @@ with st.sidebar:
         if senha == config["senha_master"]:
             nivel = "MASTER"
             st.success("Acesso MASTER liberado")
-
         elif senha == "LPA2026":
             nivel = "ADMIN"
             st.success("Acesso ADMIN liberado")
-
         elif senha:
             st.error("Senha incorreta")
 
@@ -137,18 +135,31 @@ st.markdown("### 🔍 Consulta Operacional de Rotas")
 id_motorista = st.text_input("Digite seu ID de motorista")
 
 if id_motorista:
+    url = "https://docs.google.com/spreadsheets/d/1F8HC2D8UxRc5R_QBdd-zWu7y6Twqyk3r0NTPN0HCWUI/export?format=xlsx"
 
-    # ================= VARIÁVEIS PARA TROCAR =================
-    PLANILHA_URL = "<LINK_PLANILHA_MANAUS_AQUI>"
-    FORM_BASE_URL = "<LINK_FORM_MANAUS_AQUI>"
-    # ========================================================
-
-    df = pd.read_excel(PLANILHA_URL)
+    # ===== BASE DE ROTAS =====
+    df = pd.read_excel(url)
     df["ID"] = df["ID"].astype(str).str.strip()
+
+    # ===== BASE DE DRIVERS ATIVOS =====
+    df_drivers = pd.read_excel(url, sheet_name="DRIVERS ATIVOS", dtype=str)
+    df_drivers["ID"] = df_drivers["ID"].str.strip()
+    ids_ativos = set(df_drivers["ID"].dropna())
+
     id_motorista = id_motorista.strip()
 
+    # ===== VALIDAÇÃO DO ID =====
+    if id_motorista not in ids_ativos:
+        st.warning(
+            "⚠️ ID não encontrado na base de motoristas ativos.\n\n"
+            "Verifique se digitou corretamente."
+        )
+        st.stop()
+
+    # ===== RESULTADOS DO MOTORISTA =====
     resultado = df[df["ID"] == id_motorista]
 
+    # ===== ROTAS DISPONÍVEIS =====
     rotas_disponiveis = df[
         df["ID"].isna() |
         (df["ID"] == "") |
@@ -175,12 +186,12 @@ if id_motorista:
 
             for cidade in rotas_disponiveis["Cidade"].unique():
                 with st.expander(f"🏙️ {cidade}"):
-                    for _, row in rotas_disponiveis[
-                        rotas_disponiveis["Cidade"] == cidade
-                    ].iterrows():
+                    for _, row in rotas_disponiveis[rotas_disponiveis["Cidade"] == cidade].iterrows():
 
+                        # ===== FORMULÁRIO DE INTERESSE =====
                         form_url = (
-                            f"{FORM_BASE_URL}?usp=pp_url"
+                            "https://docs.google.com/forms/d/e/1FAIpQLSffKb0EPcHCRXv-XiHhgk-w2bTGbt179fJkr879jNdp-AbTxg/viewform"
+                            f"?usp=pp_url"
                             f"&entry.392776957={id_motorista}"
                             f"&entry.1682939517={row['Rota']}"
                             f"&entry.2002352354={row['Placa']}"
@@ -210,12 +221,11 @@ if id_motorista:
         else:
             for cidade in rotas_disponiveis["Cidade"].unique():
                 with st.expander(f"🏙️ {cidade}"):
-                    for _, row in rotas_disponiveis[
-                        rotas_disponiveis["Cidade"] == cidade
-                    ].iterrows():
+                    for _, row in rotas_disponiveis[rotas_disponiveis["Cidade"] == cidade].iterrows():
 
                         form_url = (
-                            f"{FORM_BASE_URL}?usp=pp_url"
+                            "https://docs.google.com/forms/d/e/1FAIpQLSffKb0EPcHCRXv-XiHhgk-w2bTGbt179fJkr879jNdp-AbTxg/viewform"
+                            f"?usp=pp_url"
                             f"&entry.392776957={id_motorista}"
                             f"&entry.1682939517={row['Rota']}"
                             f"&entry.2002352354={row['Placa']}"
