@@ -131,18 +131,18 @@ if config["status_site"] == "FECHADO":
 
 # ================= CONSULTA =================
 st.markdown("### 🔍 Consulta Operacional de Rotas")
-
 id_motorista = st.text_input("Digite seu ID de motorista")
 
 if id_motorista:
-    url = "https://docs.google.com/spreadsheets/d/1F8HC2D8UxRc5R_QBdd-zWu7y6Twqyk3r0NTPN0HCWUI/export?format=xlsx"
+    url_rotas = "https://docs.google.com/spreadsheets/d/1F8HC2D8UxRc5R_QBdd-zWu7y6Twqyk3r0NTPN0HCWUI/export?format=xlsx"
+    url_interesse = "https://docs.google.com/spreadsheets/d/1ux9UP_oJ9VTCTB_YMpvHr1VEPpFHdIBY2pudgehtTIE/export?format=xlsx&sheet=Planilha1"  # ajuste se necessário
 
     # ===== BASE DE ROTAS =====
-    df = pd.read_excel(url)
+    df = pd.read_excel(url_rotas)
     df["ID"] = df["ID"].astype(str).str.strip()
 
     # ===== BASE DE DRIVERS ATIVOS =====
-    df_drivers = pd.read_excel(url, sheet_name="DRIVERS ATIVOS", dtype=str)
+    df_drivers = pd.read_excel(url_rotas, sheet_name="DRIVERS ATIVOS", dtype=str)
     df_drivers["ID"] = df_drivers["ID"].str.strip()
     ids_ativos = set(df_drivers["ID"].dropna())
 
@@ -167,6 +167,11 @@ if id_motorista:
         (df["ID"] == "-")
     ]
 
+    # ===== PLANILHA INTERESSE - TRAVA CLIQUE =====
+    df_interesse = pd.read_excel(url_interesse)
+    df_interesse["ID"] = df_interesse["ID"].astype(str).str.strip()
+    df_interesse["Controle 01"] = df_interesse["Controle 01"].astype(str).str.strip()
+
     # ===== DRIVER COM ROTA =====
     if not resultado.empty:
         for _, row in resultado.iterrows():
@@ -183,33 +188,46 @@ if id_motorista:
         if liberar_dobra and not rotas_disponiveis.empty:
             st.divider()
             st.markdown("### 📦 Rotas disponíveis")
-
             for cidade in rotas_disponiveis["Cidade"].unique():
                 with st.expander(f"🏙️ {cidade}"):
                     for _, row in rotas_disponiveis[rotas_disponiveis["Cidade"] == cidade].iterrows():
 
-                        # ===== FORMULÁRIO DE INTERESSE =====
-                        form_url = (
-                            "https://docs.google.com/forms/d/e/1FAIpQLSffKb0EPcHCRXv-XiHhgk-w2bTGbt179fJkr879jNdp-AbTxg/viewform"
-                            f"?usp=pp_url"
-                            f"&entry.392776957={id_motorista}"
-                            f"&entry.1682939517={row['Rota']}"
-                            f"&entry.2002352354={row['Placa']}"
-                            f"&entry.1100254277={row.get('Tipo Veiculo', '')}"
-                            f"&entry.625563351={row['Cidade']}"
-                            f"&entry.1284288730={row['Bairro']}"
-                            f"&entry.1534916252=Tenho+Interesse"
-                        )
+                        # ===== VERIFICA SE MOTORISTA JÁ CLICOU =====
+                        ja_clicou = not df_interesse[
+                            (df_interesse["ID"] == id_motorista) &
+                            (df_interesse["Controle 01"] == row["Rota"])
+                        ].empty
 
-                        st.markdown(f"""
-                        <div class="card">
-                            <p>📍 <strong>Bairro:</strong> {row['Bairro']}</p>
-                            <p>🚗 <strong>Tipo Veículo:</strong> {row.get('Tipo Veiculo', 'Não informado')}</p>
-                            <a href="{form_url}" target="_blank">
-                                👉 Tenho interesse nesta rota
-                            </a>
-                        </div>
-                        """, unsafe_allow_html=True)
+                        if ja_clicou:
+                            st.markdown(f"""
+                            <div class="card">
+                                <p>📍 <strong>Bairro:</strong> {row['Bairro']}</p>
+                                <p>🚗 <strong>Tipo Veículo:</strong> {row.get('Tipo Veiculo', 'Não informado')}</p>
+                                <p style="color: green; font-weight:bold;">✅ Você já clicou nesta rota</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        else:
+                            form_url = (
+                                "https://docs.google.com/forms/d/e/1FAIpQLSffKb0EPcHCRXv-XiHhgk-w2bTGbt179fJkr879jNdp-AbTxg/viewform"
+                                f"?usp=pp_url"
+                                f"&entry.392776957={id_motorista}"
+                                f"&entry.1682939517={row['Rota']}"
+                                f"&entry.2002352354={row['Placa']}"
+                                f"&entry.1100254277={row.get('Tipo Veiculo', '')}"
+                                f"&entry.625563351={row['Cidade']}"
+                                f"&entry.1284288730={row['Bairro']}"
+                                f"&entry.1534916252=Tenho+Interesse"
+                            )
+
+                            st.markdown(f"""
+                            <div class="card">
+                                <p>📍 <strong>Bairro:</strong> {row['Bairro']}</p>
+                                <p>🚗 <strong>Tipo Veículo:</strong> {row.get('Tipo Veiculo', 'Não informado')}</p>
+                                <a href="{form_url}" target="_blank">
+                                    👉 Tenho interesse nesta rota
+                                </a>
+                            </div>
+                            """, unsafe_allow_html=True)
 
     # ===== DRIVER SEM ROTA =====
     else:
@@ -223,27 +241,42 @@ if id_motorista:
                 with st.expander(f"🏙️ {cidade}"):
                     for _, row in rotas_disponiveis[rotas_disponiveis["Cidade"] == cidade].iterrows():
 
-                        form_url = (
-                            "https://docs.google.com/forms/d/e/1FAIpQLSffKb0EPcHCRXv-XiHhgk-w2bTGbt179fJkr879jNdp-AbTxg/viewform"
-                            f"?usp=pp_url"
-                            f"&entry.392776957={id_motorista}"
-                            f"&entry.1682939517={row['Rota']}"
-                            f"&entry.2002352354={row['Placa']}"
-                            f"&entry.1100254277={row.get('Tipo Veiculo', '')}"
-                            f"&entry.625563351={row['Cidade']}"
-                            f"&entry.1284288730={row['Bairro']}"
-                            f"&entry.1534916252=Tenho+Interesse"
-                        )
+                        # ===== VERIFICA SE MOTORISTA JÁ CLICOU =====
+                        ja_clicou = not df_interesse[
+                            (df_interesse["ID"] == id_motorista) &
+                            (df_interesse["Controle 01"] == row["Rota"])
+                        ].empty
 
-                        st.markdown(f"""
-                        <div class="card">
-                            <p>📍 <strong>Bairro:</strong> {row['Bairro']}</p>
-                            <p>🚗 <strong>Tipo Veículo:</strong> {row.get('Tipo Veiculo', 'Não informado')}</p>
-                            <a href="{form_url}" target="_blank">
-                                👉 Tenho interesse nesta rota
-                            </a>
-                        </div>
-                        """, unsafe_allow_html=True)
+                        if ja_clicou:
+                            st.markdown(f"""
+                            <div class="card">
+                                <p>📍 <strong>Bairro:</strong> {row['Bairro']}</p>
+                                <p>🚗 <strong>Tipo Veículo:</strong> {row.get('Tipo Veiculo', 'Não informado')}</p>
+                                <p style="color: green; font-weight:bold;">✅ Você já clicou nesta rota</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        else:
+                            form_url = (
+                                "https://docs.google.com/forms/d/e/1FAIpQLSffKb0EPcHCRXv-XiHhgk-w2bTGbt179fJkr879jNdp-AbTxg/viewform"
+                                f"?usp=pp_url"
+                                f"&entry.392776957={id_motorista}"
+                                f"&entry.1682939517={row['Rota']}"
+                                f"&entry.2002352354={row['Placa']}"
+                                f"&entry.1100254277={row.get('Tipo Veiculo', '')}"
+                                f"&entry.625563351={row['Cidade']}"
+                                f"&entry.1284288730={row['Bairro']}"
+                                f"&entry.1534916252=Tenho+Interesse"
+                            )
+
+                            st.markdown(f"""
+                            <div class="card">
+                                <p>📍 <strong>Bairro:</strong> {row['Bairro']}</p>
+                                <p>🚗 <strong>Tipo Veículo:</strong> {row.get('Tipo Veiculo', 'Não informado')}</p>
+                                <a href="{form_url}" target="_blank">
+                                    👉 Tenho interesse nesta rota
+                                </a>
+                            </div>
+                            """, unsafe_allow_html=True)
 
 # ================= ASSINATURA =================
 st.markdown(
