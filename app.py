@@ -193,6 +193,7 @@ if id_motorista:
             for cidade in rotas_disponiveis["Cidade"].unique():
                 with st.expander(f"🏙️ {cidade}"):
                     for _, row in rotas_disponiveis[rotas_disponiveis["Cidade"] == cidade].iterrows():
+                        # Condicional de "já clicou" baseado na mesma Data Exp.
                         ja_clicou = not df_interesse[
                             (df_interesse["ID"] == id_motorista) &
                             (df_interesse["Controle 01"] == row["Rota"]) &
@@ -207,7 +208,7 @@ if id_motorista:
                                 <p>📍 <strong>Bairro:</strong> {row['Bairro']}</p>
                                 <p>🚗 <strong>Tipo Veículo:</strong> {row.get('Tipo Veiculo','Não informado')}</p>
                                 <p>📅 <strong>Data da Expedição:</strong> {data_fmt}</p>
-                                <p style="color: green; font-weight:bold;">✅ Você já clicou nesta rota</p>
+                                <p style="color: green; font-weight:bold;">✅ Você já clicou nesta rota nesta data</p>
                             </div>
                             """, unsafe_allow_html=True)
                         else:
