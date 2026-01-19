@@ -56,26 +56,14 @@ st.markdown("""
     border-left: 6px solid #ff7a00;
     margin-bottom: 16px;
 }
-.card h4 {
-    margin-bottom: 12px;
-}
-.card p {
-    margin: 4px 0;
-    font-size: 15px;
-}
+.card h4 { margin-bottom: 12px; }
+.card p { margin: 4px 0; font-size: 15px; }
 .card a {
     display: inline-block;
     margin-top: 10px;
     color: #ff7a00;
     font-weight: bold;
     text-decoration: none;
-}
-.admin-box {
-    background-color: #fff3e0;
-    padding: 16px;
-    border-radius: 12px;
-    margin-bottom: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 </style>
 """, unsafe_allow_html=True)
@@ -143,32 +131,6 @@ st.markdown(
 )
 st.divider()
 
-# ================= SIDEBAR ADMIN =================
-with st.sidebar:
-    with st.expander("🔒 Área Administrativa", expanded=False):
-        senha = st.text_input("Senha", type="password")
-        nivel = None
-
-        if senha == config["senha_master"]:
-            nivel = "MASTER"
-            st.success("Acesso MASTER liberado")
-        elif senha == "LPA2026":
-            nivel = "ADMIN"
-            st.success("Acesso ADMIN liberado")
-        elif senha:
-            st.error("Senha incorreta")
-
-        if nivel in ["ADMIN", "MASTER"]:
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("🔓 ABRIR"):
-                    config["status_site"] = "ABERTO"
-                    registrar_acao(nivel, "ABRIU CONSULTA")
-            with col2:
-                if st.button("🔒 FECHAR"):
-                    config["status_site"] = "FECHADO"
-                    registrar_acao(nivel, "FECHOU CONSULTA")
-
 # ================= STATUS =================
 st.markdown(f"### 📌 Status atual: **{config['status_site']}**")
 st.divider()
@@ -196,7 +158,7 @@ if id_motorista:
     id_motorista = id_motorista.strip()
 
     if id_motorista not in ids_ativos:
-        st.warning("⚠️ ID não encontrado na base de motoristas ativos. Verifique se digitou corretamente.")
+        st.warning("⚠️ ID não encontrado na base de motoristas ativos.")
         st.stop()
 
     resultado = df[df["ID"] == id_motorista]
@@ -213,6 +175,8 @@ if id_motorista:
     df_interesse["Controle 01"] = df_interesse["Controle 01"].astype(str).str.strip()
     df_interesse["Data Exp."] = pd.to_datetime(df_interesse["Data Exp."], errors="coerce").dt.date
 
+    hora_atual = datetime.now().hour
+
     # ===== DRIVER COM ROTA =====
     if not resultado.empty:
         for _, row in resultado.iterrows():
@@ -228,7 +192,10 @@ if id_motorista:
             </div>
             """, unsafe_allow_html=True)
 
-        mostrar_rotas_disponiveis(rotas_disponiveis, df_interesse, id_motorista)
+        if 9 <= hora_atual < 15:
+            mostrar_rotas_disponiveis(rotas_disponiveis, df_interesse, id_motorista)
+        else:
+            st.info("⏰ Rotas disponíveis para quem já possui rota são exibidas apenas das **09h às 15h**.")
 
     # ===== DRIVER SEM ROTA =====
     else:
