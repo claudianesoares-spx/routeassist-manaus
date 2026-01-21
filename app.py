@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import json
 import os
+import time
 from datetime import datetime
 
 # ================= CONFIGURAÇÃO DA PÁGINA =================
@@ -44,6 +45,43 @@ def registrar_acao(usuario, acao):
         "acao": acao
     })
     save_config(config)
+
+# ================= CACHE GLOBAL =================
+CACHE = {
+    "rotas": None,
+    "drivers": None,
+    "interesse": None,
+    "last_update": 0
+}
+
+CACHE_TTL = 300  # 5 minutos
+
+def carregar_dados_com_cache():
+    agora = time.time()
+
+    if CACHE["rotas"] is None or (agora - CACHE["last_update"]) > CACHE_TTL:
+        url_rotas = "https://docs.google.com/spreadsheets/d/1F8HC2D8UxRc5R_QBdd-zWu7y6Twqyk3r0NTPN0HCWUI/export?format=xlsx"
+        url_interesse = "https://docs.google.com/spreadsheets/d/1ux9UP_oJ9VTCTB_YMpvHr1VEPpFHdIBY2pudgehtTIE/export?format=xlsx"
+
+        df = pd.read_excel(url_rotas)
+        df["ID"] = df["ID"].astype(str).str.strip()
+        df["Data Exp."] = pd.to_datetime(df["Data Exp."], errors="coerce").dt.date
+
+        df_drivers = pd.read_excel(url_rotas, sheet_name="DRIVERS ATIVOS", dtype=str)
+        df_drivers["ID"] = df_drivers["ID"].str.strip()
+        ids_ativos = set(df_drivers["ID"].dropna())
+
+        df_interesse = pd.read_excel(url_interesse)
+        df_interesse["ID"] = df_interesse["ID"].astype(str).str.strip()
+        df_interesse["Controle 01"] = df_interesse["Controle 01"].astype(str).str.strip()
+        df_interesse["Data Exp."] = pd.to_datetime(df_interesse["Data Exp."], errors="coerce").dt.date
+
+        CACHE["rotas"] = df
+        CACHE["drivers"] = ids_ativos
+        CACHE["interesse"] = df_interesse
+        CACHE["last_update"] = agora
+
+    return CACHE["rotas"], CACHE["drivers"], CACHE["interesse"]
 
 # ================= ESTILO =================
 st.markdown("""
@@ -182,16 +220,7 @@ st.markdown("### 🔍 Consulta Operacional de Rotas")
 id_motorista = st.text_input("Digite seu ID de motorista")
 
 if id_motorista:
-    url_rotas = "https://docs.google.com/spreadsheets/d/1F8HC2D8UxRc5R_QBdd-zWu7y6Twqyk3r0NTPN0HCWUI/export?format=xlsx"
-    url_interesse = "https://docs.google.com/spreadsheets/d/1ux9UP_oJ9VTCTB_YMpvHr1VEPpFHdIBY2pudgehtTIE/export?format=xlsx"
-
-    df = pd.read_excel(url_rotas)
-    df["ID"] = df["ID"].astype(str).str.strip()
-    df["Data Exp."] = pd.to_datetime(df["Data Exp."], errors="coerce").dt.date
-
-    df_drivers = pd.read_excel(url_rotas, sheet_name="DRIVERS ATIVOS", dtype=str)
-    df_drivers["ID"] = df_drivers["ID"].str.strip()
-    ids_ativos = set(df_drivers["ID"].dropna())
+    df, ids_ativos, df_interesse = carregar_dados_com_cache()
 
     id_motorista = id_motorista.strip()
 
@@ -208,12 +237,6 @@ if id_motorista:
         (df["ID"] == "-")
     ]
 
-    df_interesse = pd.read_excel(url_interesse)
-    df_interesse["ID"] = df_interesse["ID"].astype(str).str.strip()
-    df_interesse["Controle 01"] = df_interesse["Controle 01"].astype(str).str.strip()
-    df_interesse["Data Exp."] = pd.to_datetime(df_interesse["Data Exp."], errors="coerce").dt.date
-
-    # ===== DRIVER COM ROTA =====
     if not resultado.empty:
         for _, row in resultado.iterrows():
             data_fmt = row["Data Exp."].strftime("%d/%m/%Y") if pd.notna(row["Data Exp."]) else "-"
@@ -229,8 +252,6 @@ if id_motorista:
             """, unsafe_allow_html=True)
 
         mostrar_rotas_disponiveis(rotas_disponiveis, df_interesse, id_motorista)
-
-    # ===== DRIVER SEM ROTA =====
     else:
         st.info("ℹ️ No momento você não possui rota atribuída.")
         mostrar_rotas_disponiveis(rotas_disponiveis, df_interesse, id_motorista)
