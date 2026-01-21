@@ -70,6 +70,13 @@ st.markdown("""
     font-weight: bold;
     text-decoration: none;
 }
+.admin-box {
+    background-color: #fff3e0;
+    padding: 16px;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -128,6 +135,40 @@ def mostrar_rotas_disponiveis(rotas_disponiveis, df_interesse, id_motorista):
                     </div>
                     """, unsafe_allow_html=True)
 
+# ================= CABEÇALHO =================
+st.title("🧭 RouteAssist")
+st.markdown(
+    "Ferramenta de **apoio operacional** para alocação e redistribuição de rotas, "
+    "atuando de forma complementar ao sistema oficial **SPX**."
+)
+st.divider()
+
+# ================= SIDEBAR ADMIN =================
+with st.sidebar:
+    with st.expander("🔒 Área Administrativa", expanded=False):
+        senha = st.text_input("Senha", type="password")
+        nivel = None
+
+        if senha == config["senha_master"]:
+            nivel = "MASTER"
+            st.success("Acesso MASTER liberado")
+        elif senha == "LPA2026":
+            nivel = "ADMIN"
+            st.success("Acesso ADMIN liberado")
+        elif senha:
+            st.error("Senha incorreta")
+
+        if nivel in ["ADMIN", "MASTER"]:
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("🔓 ABRIR"):
+                    config["status_site"] = "ABERTO"
+                    registrar_acao(nivel, "ABRIU CONSULTA")
+            with col2:
+                if st.button("🔒 FECHAR"):
+                    config["status_site"] = "FECHADO"
+                    registrar_acao(nivel, "FECHOU CONSULTA")
+
 # ================= STATUS =================
 st.markdown(f"### 📌 Status atual: **{config['status_site']}**")
 st.divider()
@@ -141,8 +182,6 @@ st.markdown("### 🔍 Consulta Operacional de Rotas")
 id_motorista = st.text_input("Digite seu ID de motorista")
 
 if id_motorista:
-    hora_atual = datetime.now().hour  # 👈 ÚNICA REGRA ADICIONADA
-
     url_rotas = "https://docs.google.com/spreadsheets/d/1F8HC2D8UxRc5R_QBdd-zWu7y6Twqyk3r0NTPN0HCWUI/export?format=xlsx"
     url_interesse = "https://docs.google.com/spreadsheets/d/1ux9UP_oJ9VTCTB_YMpvHr1VEPpFHdIBY2pudgehtTIE/export?format=xlsx"
 
@@ -150,9 +189,24 @@ if id_motorista:
     df["ID"] = df["ID"].astype(str).str.strip()
     df["Data Exp."] = pd.to_datetime(df["Data Exp."], errors="coerce").dt.date
 
+    df_drivers = pd.read_excel(url_rotas, sheet_name="DRIVERS ATIVOS", dtype=str)
+    df_drivers["ID"] = df_drivers["ID"].str.strip()
+    ids_ativos = set(df_drivers["ID"].dropna())
+
+    id_motorista = id_motorista.strip()
+
+    if id_motorista not in ids_ativos:
+        st.warning("⚠️ ID não encontrado na base de motoristas ativos. Verifique se digitou corretamente.")
+        st.stop()
+
     resultado = df[df["ID"] == id_motorista]
 
-    rotas_disponiveis = df[df["ID"].isna() | (df["ID"] == "") | (df["ID"] == "-")]
+    rotas_disponiveis = df[
+        df["ID"].isna() |
+        (df["ID"] == "") |
+        (df["ID"].str.lower() == "nan") |
+        (df["ID"] == "-")
+    ]
 
     df_interesse = pd.read_excel(url_interesse)
     df_interesse["ID"] = df_interesse["ID"].astype(str).str.strip()
@@ -162,21 +216,25 @@ if id_motorista:
     # ===== DRIVER COM ROTA =====
     if not resultado.empty:
         for _, row in resultado.iterrows():
+            data_fmt = row["Data Exp."].strftime("%d/%m/%Y") if pd.notna(row["Data Exp."]) else "-"
             st.markdown(f"""
             <div class="card">
                 <h4>🚚 Rota: {row['Rota']}</h4>
                 <p>👤 Motorista: {row['Nome']}</p>
+                <p>🚗 Placa: {row['Placa']}</p>
+                <p>🏙️ Cidade: {row['Cidade']}</p>
+                <p>📍 Bairro: {row['Bairro']}</p>
+                <p>📅 Data: {data_fmt}</p>
             </div>
             """, unsafe_allow_html=True)
 
-        if 9 <= hora_atual < 15:
-            mostrar_rotas_disponiveis(rotas_disponiveis, df_interesse, id_motorista)
-        else:
-            st.info("⏰ Motoristas com rota atribuída podem visualizar novas rotas apenas das **09h às 15h**.")
+        mostrar_rotas_disponiveis(rotas_disponiveis, df_interesse, id_motorista)
 
     # ===== DRIVER SEM ROTA =====
     else:
+        st.info("ℹ️ No momento você não possui rota atribuída.")
         mostrar_rotas_disponiveis(rotas_disponiveis, df_interesse, id_motorista)
+
 # ================= ASSINATURA =================
 st.markdown("""
 <hr>
