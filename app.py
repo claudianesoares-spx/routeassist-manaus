@@ -221,12 +221,14 @@ id_motorista = st.text_input("Digite seu ID de motorista")
 
 if id_motorista:
     df, ids_ativos, df_interesse = carregar_dados_com_cache()
-
     id_motorista = id_motorista.strip()
 
     if id_motorista not in ids_ativos:
         st.warning("⚠️ ID não encontrado na base de motoristas ativos. Verifique se digitou corretamente.")
         st.stop()
+
+    # >>> FRASE INSERIDA AQUI (SEM ALTERAR MAIS NADA)
+    st.info("🔄 Após clicar em **“Tenho interesse”**, atualize a página para visualizar a confirmação do envio do interesse.")
 
     resultado = df[df["ID"] == id_motorista]
 
