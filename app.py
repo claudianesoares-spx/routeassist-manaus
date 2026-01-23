@@ -19,11 +19,7 @@ DEFAULT_CONFIG = {
     "senha_master": "MASTER2026",
     "historico": []
 }
-if nivel in ["ADMIN", "MASTER"]:
-    st.divider()
-    if st.button("🔄 Atualizar dados agora"):
-        st.cache_data.clear()
-        st.success("Dados atualizados com sucesso!")
+
 # ================= FUNÇÕES DE CONFIG =================
 def load_config():
     if not os.path.exists(CONFIG_FILE):
@@ -61,20 +57,18 @@ def carregar_rotas(url):
     df["Data Exp."] = pd.to_datetime(df["Data Exp."], errors="coerce").dt.date
     return df
 
-@st.cache_data(ttl=900)
+@st.cache_data(ttl=300)
 def carregar_motoristas(url):
     df = pd.read_csv(url)
     df.columns = df.columns.str.strip()
     df["ID"] = df["ID"].fillna("").astype(str).str.strip()
     return df
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=120)
 def carregar_interesse(url):
     df = pd.read_csv(url)
     df.columns = df.columns.str.strip()
     df["ID"] = df["ID"].fillna("").astype(str).str.strip()
-    df["Controle 01"] = df["Controle 01"].astype(str).str.strip()
-    df["Data Exp."] = pd.to_datetime(df["Data Exp."], errors="coerce").dt.date
     return df
 
 # ================= ESTILO =================
@@ -102,6 +96,7 @@ with st.sidebar:
         senha = st.text_input("Senha", type="password")
 
         nivel = None
+
         if senha == config["senha_master"]:
             nivel = "MASTER"
             st.success("Acesso MASTER liberado")
@@ -113,16 +108,27 @@ with st.sidebar:
 
         if nivel in ["ADMIN", "MASTER"]:
             col1, col2 = st.columns(2)
+
             with col1:
                 if st.button("🔓 ABRIR"):
                     config["status_site"] = "ABERTO"
                     registrar_acao(nivel, "ABRIU CONSULTA")
+                    st.cache_data.clear()
+                    st.rerun()
+
             with col2:
                 if st.button("🔒 FECHAR"):
                     config["status_site"] = "FECHADO"
                     registrar_acao(nivel, "FECHOU CONSULTA")
+                    st.cache_data.clear()
+                    st.rerun()
 
-st.markdown(f"### 📌 Status atual: {config['status_site']}")
+            if st.button("♻️ ATUALIZAR AGORA"):
+                st.cache_data.clear()
+                st.success("Cache limpo — dados atualizados")
+                st.rerun()
+
+st.markdown(f"### 📌 Status atual: **{config['status_site']}**")
 st.divider()
 
 # ================= CONSULTA =================
@@ -140,15 +146,12 @@ if consultar and id_motorista:
 
     df_rotas = carregar_rotas(URL_ROTAS)
     df_drivers = carregar_motoristas(URL_DRIVERS)
-    df_interesse = carregar_interesse(URL_INTERESSE)
 
     ids_ativos = set(df_drivers["ID"].dropna())
 
     if id_motorista not in ids_ativos:
         st.warning("⚠️ ID não encontrado na base de motoristas ativos.")
         st.stop()
-
-    st.info("🔄 Após clicar em 'Tenho interesse', atualize a página para visualizar a confirmação.")
 
     resultado = df_rotas[df_rotas["ID"] == id_motorista]
     rotas_disponiveis = df_rotas[df_rotas["ID"] == ""]
@@ -160,27 +163,21 @@ if consultar and id_motorista:
             <div class="card">
                 <h4>🚚 Rota: {row['Rota']}</h4>
                 <p>👤 Motorista: {row['Nome']}</p>
-                <p>🚗 Placa: {row['Placa']}</p>
                 <p>🏙️ Cidade: {row['Cidade']}</p>
                 <p>📍 Bairro: {row['Bairro']}</p>
                 <p>📅 Data: {data_fmt}</p>
             </div>
             """, unsafe_allow_html=True)
 
-    if rotas_disponiveis.empty:
-        st.warning("🚫 No momento não há rotas disponíveis.")
-    else:
+    if not rotas_disponiveis.empty:
         st.markdown("### 📦 Regiões com rotas disponíveis")
         for cidade in rotas_disponiveis["Cidade"].unique():
             with st.expander(f"🏙️ {cidade}"):
-                df_cidade = rotas_disponiveis[rotas_disponiveis["Cidade"] == cidade]
-                for _, row in df_cidade.iterrows():
-                    data_fmt = row["Data Exp."].strftime("%d/%m/%Y") if pd.notna(row["Data Exp."]) else "-"
+                for _, row in rotas_disponiveis[rotas_disponiveis["Cidade"] == cidade].iterrows():
                     st.markdown(f"""
                     <div class="card">
                         <p>📍 Bairro: {row['Bairro']}</p>
                         <p>🚗 Tipo Veículo: {row.get('Tipo Veiculo','Não informado')}</p>
-                        <p>📅 Data da Expedição: {data_fmt}</p>
                     </div>
                     """, unsafe_allow_html=True)
 
@@ -193,5 +190,3 @@ Concept & Development — Claudiane Vieira<br>
 Since Dec/2025
 </div>
 """, unsafe_allow_html=True)
-
-
