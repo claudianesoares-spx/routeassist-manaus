@@ -51,7 +51,7 @@ URL_DRIVERS = "https://docs.google.com/spreadsheets/d/1F8HC2D8UxRc5R_QBdd-zWu7y6
 
 GOOGLE_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSffKb0EPcHCRXv-XiHhgk-w2bTGbt179fJkr879jNdp-AbTxg/viewform"
 
-# ================= FUNÇÕES DE DADOS =================
+# ================= FUNÇÕES =================
 def limpar_id(valor):
     if pd.isna(valor):
         return ""
@@ -104,7 +104,6 @@ st.divider()
 
 # ================= ADMIN =================
 nivel = None
-
 with st.sidebar:
     with st.expander("🔒 Área Administrativa"):
         senha = st.text_input("Senha", type="password")
@@ -165,7 +164,6 @@ if st.session_state.consultado and st.session_state.id_motorista:
 
     # ===== ROTAS DO MOTORISTA =====
     rotas_motorista = df_rotas[df_rotas["ID"] == id_motorista]
-
     if not rotas_motorista.empty:
         st.markdown("### 🚚 Suas rotas atribuídas")
         for _, row in rotas_motorista.iterrows():
@@ -178,44 +176,43 @@ if st.session_state.consultado and st.session_state.id_motorista:
             </div>
             """, unsafe_allow_html=True)
 
-    # ===== ROTAS DISPONÍVEIS (DIVIDIDAS POR CIDADE) =====
+    # ===== ROTAS DISPONÍVEIS (EXPANSÍVEL POR CIDADE) =====
     rotas_disp = df_rotas[df_rotas["ID"] == ""]
 
     if not rotas_disp.empty:
         st.markdown("### 📦 Rotas disponíveis")
 
         for cidade, df_cidade in rotas_disp.groupby("Cidade"):
-            st.markdown(f"#### 🏙️ {cidade}")
+            with st.expander(f"🏙️ {cidade}", expanded=False):
 
-            for _, row in df_cidade.iterrows():
-                data_fmt = row["Data Exp."].strftime("%d/%m/%Y") if pd.notna(row["Data Exp."]) else "-"
-                rota_key = f"{row['Rota']}_{row['Bairro']}_{data_fmt}"
+                for _, row in df_cidade.iterrows():
+                    data_fmt = row["Data Exp."].strftime("%d/%m/%Y") if pd.notna(row["Data Exp."]) else "-"
+                    rota_key = f"{row['Rota']}_{row['Bairro']}_{data_fmt}"
 
-                form_url = (
-                    f"{GOOGLE_FORM_URL}?usp=pp_url"
-                    f"&entry.392776957={id_motorista}"
-                    f"&entry.1682939517={row['Rota']}"
-                    f"&entry.625563351={row['Cidade']}"
-                    f"&entry.1284288730={row['Bairro']}"
-                    f"&entry.1534916252=Tenho+Interesse"
-                )
+                    form_url = (
+                        f"{GOOGLE_FORM_URL}?usp=pp_url"
+                        f"&entry.392776957={id_motorista}"
+                        f"&entry.1682939517={row['Rota']}"
+                        f"&entry.625563351={row['Cidade']}"
+                        f"&entry.1284288730={row['Bairro']}"
+                        f"&entry.1534916252=Tenho+Interesse"
+                    )
 
-                st.markdown(f"""
-                <div class="card">
-                    <p><strong>Rota:</strong> {row['Rota']}</p>
-                    <p>📍 Bairro: {row['Bairro']}</p>
-                    <p>📅 Data: {data_fmt}</p>
-                </div>
-                """, unsafe_allow_html=True)
+                    st.markdown(f"""
+                    <div class="card">
+                        <p>📍 Bairro: {row['Bairro']}</p>
+                        <p>📅 Data: {data_fmt}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
 
-                if rota_key in st.session_state.interesses:
-                    st.success("✔ Interesse registrado")
-                    st.markdown(f"[👉 Abrir formulário]({form_url})")
-                else:
-                    if st.button("✋ Tenho interesse nesta rota", key=f"btn_{rota_key}"):
-                        st.session_state.interesses.add(rota_key)
+                    if rota_key in st.session_state.interesses:
                         st.success("✔ Interesse registrado")
                         st.markdown(f"[👉 Abrir formulário]({form_url})")
+                    else:
+                        if st.button("✋ Tenho interesse nesta rota", key=f"btn_{rota_key}"):
+                            st.session_state.interesses.add(rota_key)
+                            st.success("✔ Interesse registrado")
+                            st.markdown(f"[👉 Abrir formulário]({form_url})")
 
 # ================= RODAPÉ =================
 st.markdown("""
