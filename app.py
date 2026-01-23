@@ -94,6 +94,12 @@ st.markdown("""
     border-left: 6px solid #ff7a00;
     margin-bottom: 16px;
 }
+.cidade {
+    margin-top: 24px;
+    margin-bottom: 8px;
+    font-weight: bold;
+    font-size: 1.1em;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -162,51 +168,42 @@ if st.session_state.consultado and st.session_state.id_motorista:
         st.warning("⚠️ ID não encontrado.")
         st.stop()
 
-    # ===== ROTAS DO MOTORISTA =====
-    rotas_motorista = df_rotas[df_rotas["ID"] == id_motorista]
-    if not rotas_motorista.empty:
-        st.markdown("### 🚚 Suas rotas atribuídas")
-        for _, row in rotas_motorista.iterrows():
-            data_fmt = row["Data Exp."].strftime("%d/%m/%Y") if pd.notna(row["Data Exp."]) else "-"
-            st.markdown(f"""
-            <div class="card">
-                <p><strong>Rota:</strong> {row['Rota']}</p>
-                <p>📍 Bairro: {row['Bairro']}</p>
-                <p>📅 Data: {data_fmt}</p>
-            </div>
-            """, unsafe_allow_html=True)
-
-    # ===== ROTAS DISPONÍVEIS =====
+    # ===== ROTAS DISPONÍVEIS AGRUPADAS POR CIDADE =====
     rotas_disp = df_rotas[df_rotas["ID"] == ""]
+
     if not rotas_disp.empty:
         st.markdown("### 📦 Rotas disponíveis")
-        for _, row in rotas_disp.iterrows():
-            data_fmt = row["Data Exp."].strftime("%d/%m/%Y") if pd.notna(row["Data Exp."]) else "-"
-            rota_key = f"{row['Rota']}_{row['Bairro']}_{data_fmt}"
 
-            form_url = (
-                f"{GOOGLE_FORM_URL}?usp=pp_url"
-                f"&entry.392776957={id_motorista}"
-                f"&entry.1682939517={row['Rota']}"
-                f"&entry.625563351={row['Cidade']}"
-                f"&entry.1284288730={row['Bairro']}"
-                f"&entry.1534916252=Tenho+Interesse"
-            )
+        for cidade, grupo in rotas_disp.groupby("Cidade"):
+            st.markdown(f"<div class='cidade'>📍 {cidade}</div>", unsafe_allow_html=True)
 
-            st.markdown(f"""
-            <div class="card">
-                <p><strong>Rota:</strong> {row['Rota']}</p>
-                <p>📍 Bairro: {row['Bairro']}</p>
-                <p>📅 Data: {data_fmt}</p>
-            </div>
-            """, unsafe_allow_html=True)
+            for _, row in grupo.iterrows():
+                data_fmt = row["Data Exp."].strftime("%d/%m/%Y") if pd.notna(row["Data Exp."]) else "-"
+                rota_key = f"{row['Rota']}_{row['Bairro']}_{data_fmt}"
 
-            if rota_key in st.session_state.interesses:
-                st.success("✔ Interesse registrado")
-                st.markdown(f"[👉 Abrir formulário]({form_url})")
-            else:
-                if st.button("✋ Tenho interesse nesta rota", key=f"btn_{rota_key}"):
-                    st.session_state.interesses.add(rota_key)
+                form_url = (
+                    f"{GOOGLE_FORM_URL}?usp=pp_url"
+                    f"&entry.392776957={id_motorista}"
+                    f"&entry.1682939517={row['Rota']}"
+                    f"&entry.625563351={row['Cidade']}"
+                    f"&entry.1284288730={row['Bairro']}"
+                    f"&entry.1534916252=Tenho+Interesse"
+                )
+
+                st.markdown(f"""
+                <div class="card">
+                    <p><strong>Rota:</strong> {row['Rota']}</p>
+                    <p>📍 Bairro: {row['Bairro']}</p>
+                    <p>📅 Data: {data_fmt}</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+                if rota_key in st.session_state.interesses:
+                    st.success("✔ Interesse registrado")
+                    st.markdown(f"[👉 Abrir formulário]({form_url})")
+                else:
+                    if st.button("✋ Tenho interesse nesta rota", key=f"btn_{rota_key}"):
+                        st.session_state.interesses.add(rota_key)
 
 # ================= RODAPÉ =================
 st.markdown("""
