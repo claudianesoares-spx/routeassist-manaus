@@ -77,6 +77,9 @@ def carregar_motoristas(url):
 if "interesses" not in st.session_state:
     st.session_state.interesses = set()
 
+if "id_motorista" not in st.session_state:
+    st.session_state.id_motorista = ""
+
 if "consultado" not in st.session_state:
     st.session_state.consultado = False
 
@@ -139,12 +142,19 @@ if config["status_site"] == "FECHADO":
 
 # ================= CONSULTA =================
 st.markdown("### 🔍 Consulta Operacional de Rotas")
-id_motorista = st.text_input("Digite seu ID de motorista").strip()
+
+id_input = st.text_input(
+    "Digite seu ID de motorista",
+    value=st.session_state.id_motorista
+)
 
 if st.button("🔍 Consultar"):
+    st.session_state.id_motorista = id_input.strip()
     st.session_state.consultado = True
 
-if st.session_state.consultado and id_motorista:
+if st.session_state.consultado and st.session_state.id_motorista:
+    id_motorista = st.session_state.id_motorista
+
     df_rotas = carregar_rotas(URL_ROTAS)
     df_drivers = carregar_motoristas(URL_DRIVERS)
 
@@ -185,17 +195,18 @@ if st.session_state.consultado and id_motorista:
 
             st.markdown(f"""
             <div class="card">
+                <p><strong>Rota:</strong> {row['Rota']}</p>
                 <p>📍 Bairro: {row['Bairro']}</p>
                 <p>📅 Data: {data_fmt}</p>
             </div>
             """, unsafe_allow_html=True)
 
             if rota_key in st.session_state.interesses:
-                st.markdown(f"[✔ Interesse registrado — abrir formulário]({form_url})")
+                st.success("✔ Interesse registrado")
+                st.markdown(f"[👉 Abrir formulário]({form_url})")
             else:
                 if st.button("✋ Tenho interesse nesta rota", key=f"btn_{rota_key}"):
                     st.session_state.interesses.add(rota_key)
-                    st.markdown(f"[👉 Abrir formulário]({form_url})")
 
 # ================= RODAPÉ =================
 st.markdown("""
