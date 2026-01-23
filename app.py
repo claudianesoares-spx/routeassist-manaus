@@ -51,18 +51,12 @@ GOOGLE_FORM_URL = (
     "https://docs.google.com/forms/d/e/1FAIpQLSffKb0EPcHCRXv-XiHhgk-w2bTGbt179fJkr879jNdp-AbTxg/viewform"
 )
 
-# ================= CACHE =================
+# ================= CACHE (INALTERADO) =================
 @st.cache_data(ttl=120)
 def carregar_rotas(url):
     df = pd.read_csv(url)
     df.columns = df.columns.str.strip()
-    df["ID"] = (
-        df["ID"]
-        .fillna("")
-        .astype(str)
-        .str.strip()
-        .replace({"nan": "", "-": ""})
-    )
+    df["ID"] = df["ID"].fillna("").astype(str).str.strip().replace({"nan": "", "-": ""})
     df["Data Exp."] = pd.to_datetime(df["Data Exp."], errors="coerce").dt.date
     return df
 
@@ -87,10 +81,6 @@ st.markdown("""
     box-shadow: 0 4px 12px rgba(0,0,0,0.08);
     border-left: 6px solid #ff7a00;
     margin-bottom: 16px;
-}
-a {
-    font-weight: bold;
-    text-decoration: none;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -160,24 +150,6 @@ if st.button("🔍 Consultar rotas disponíveis"):
         st.warning("⚠️ ID não encontrado na base de motoristas ativos.")
         st.stop()
 
-    # ================= ROTAS ATRIBUÍDAS =================
-    rotas_atribuidas = df_rotas[df_rotas["ID"] == id_motorista]
-
-    if not rotas_atribuidas.empty:
-        st.markdown("### 🚚 Suas rotas atribuídas")
-
-        for _, row in rotas_atribuidas.iterrows():
-            data_fmt = row["Data Exp."].strftime("%d/%m/%Y") if pd.notna(row["Data Exp."]) else "-"
-
-            st.markdown(f"""
-            <div class="card">
-                <h4>🚚 Rota: {row['Rota']}</h4>
-                <p>🏙️ Cidade: {row['Cidade']}</p>
-                <p>📍 Bairro: {row['Bairro']}</p>
-                <p>📅 Data: {data_fmt}</p>
-            </div>
-            """, unsafe_allow_html=True)
-
     # ================= ROTAS DISPONÍVEIS =================
     rotas_disponiveis = df_rotas[df_rotas["ID"] == ""]
 
@@ -198,24 +170,20 @@ if st.button("🔍 Consultar rotas disponíveis"):
                 f"&entry.1534916252=Tenho+Interesse"
             )
 
-            ja_clicou = rota_key in st.session_state.interesses
-            cor = "#2ecc71" if ja_clicou else "#ff7a00"
-            texto = "✔ Interesse registrado" if ja_clicou else "✋ Tenho interesse nesta rota"
-
             st.markdown(f"""
             <div class="card">
                 <p>📍 Bairro: {row['Bairro']}</p>
                 <p>🚗 Tipo Veículo: {row.get('Tipo Veiculo','Não informado')}</p>
                 <p>📅 Data da Expedição: {data_fmt}</p>
-                <a href="{form_url}" target="_blank" style="color:{cor};">
-                    {texto}
-                </a>
             </div>
             """, unsafe_allow_html=True)
 
-            # Marca como clicado APÓS o primeiro refresh da sessão
-            if not ja_clicou:
-                st.session_state.interesses.add(rota_key)
+            if rota_key in st.session_state.interesses:
+                st.success("✔ Interesse já registrado")
+            else:
+                if st.button("✋ Tenho interesse nesta rota", key=f"btn_{rota_key}"):
+                    st.session_state.interesses.add(rota_key)
+                    st.markdown(f"[👉 Abrir formulário]({form_url})", unsafe_allow_html=True)
 
 # ================= RODAPÉ =================
 st.markdown("""
