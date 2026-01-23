@@ -48,7 +48,6 @@ URL_ROTAS = "https://docs.google.com/spreadsheets/d/1F8HC2D8UxRc5R_QBdd-zWu7y6Tw
 URL_DRIVERS = "https://docs.google.com/spreadsheets/d/1F8HC2D8UxRc5R_QBdd-zWu7y6Twqyk3r0NTPN0HCWUI/export?format=csv&gid=36116218"
 URL_INTERESSE = "https://docs.google.com/spreadsheets/d/1ux9UP_oJ9VTCTB_YMpvHr1VEPpFHdIBY2pudgehtTIE/export?format=csv&gid=1442170550"
 
-# 👉 FORM DE INTERESSE (ESSENCIAL)
 GOOGLE_FORM_URL = (
     "https://docs.google.com/forms/d/e/1FAIpQLSffKb0EPcHCRXv-XiHhgk-w2bTGbt179fJkr879jNdp-AbTxg/viewform"
 )
@@ -146,10 +145,14 @@ if config["status_site"] == "FECHADO":
 
 st.markdown("### 🔍 Consulta Operacional de Rotas")
 
-id_motorista = st.text_input("Digite seu ID de motorista")
+id_motorista = st.text_input("Digite seu ID de motorista").strip()
 
-if id_motorista:
-    id_motorista = id_motorista.strip()
+consultar = st.button("🔍 Consultar rotas disponíveis")
+
+if consultar:
+    if not id_motorista:
+        st.warning("⚠️ Informe seu ID de motorista.")
+        st.stop()
 
     df_rotas = carregar_rotas(URL_ROTAS)
     df_drivers = carregar_motoristas(URL_DRIVERS)
