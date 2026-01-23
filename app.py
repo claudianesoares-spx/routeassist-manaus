@@ -19,7 +19,11 @@ DEFAULT_CONFIG = {
     "senha_master": "MASTER2026",
     "historico": []
 }
-
+if nivel in ["ADMIN", "MASTER"]:
+    st.divider()
+    if st.button("🔄 Atualizar dados agora"):
+        st.cache_data.clear()
+        st.success("Dados atualizados com sucesso!")
 # ================= FUNÇÕES DE CONFIG =================
 def load_config():
     if not os.path.exists(CONFIG_FILE):
@@ -189,4 +193,5 @@ Concept & Development — Claudiane Vieira<br>
 Since Dec/2025
 </div>
 """, unsafe_allow_html=True)
+
 
