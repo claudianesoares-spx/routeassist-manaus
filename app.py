@@ -52,7 +52,7 @@ GOOGLE_FORM_URL = (
     "https://docs.google.com/forms/d/e/1FAIpQLSffKb0EPcHCRXv-XiHhgk-w2bTGbt179fJkr879jNdp-AbTxg/viewform"
 )
 
-# ================= CACHE ANTI-PICO =================
+# ================= CACHE =================
 @st.cache_data(ttl=120)
 def carregar_rotas(url):
     df = pd.read_csv(url)
@@ -68,14 +68,9 @@ def carregar_motoristas(url):
     df["ID"] = df["ID"].fillna("").astype(str).str.strip()
     return df
 
-@st.cache_data(ttl=60)
-def carregar_interesse(url):
-    df = pd.read_csv(url)
-    df.columns = df.columns.str.strip()
-    df["ID"] = df["ID"].astype(str).str.strip()
-    df["Controle 01"] = df["Controle 01"].astype(str).str.strip()
-    df["Data Exp."] = pd.to_datetime(df["Data Exp."], errors="coerce").dt.date
-    return df
+# ================= ESTADO DE SESSÃO =================
+if "interesses" not in st.session_state:
+    st.session_state.interesses = set()
 
 # ================= ESTILO =================
 st.markdown("""
@@ -90,7 +85,7 @@ st.markdown("""
 }
 a {
     font-weight: bold;
-    color: #ff7a00;
+    text-decoration: none;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -147,41 +142,27 @@ st.markdown("### 🔍 Consulta Operacional de Rotas")
 
 id_motorista = st.text_input("Digite seu ID de motorista").strip()
 
-consultar = st.button("🔍 Consultar rotas disponíveis")
+if st.button("🔍 Consultar rotas disponíveis"):
 
-if consultar:
     if not id_motorista:
         st.warning("⚠️ Informe seu ID de motorista.")
         st.stop()
 
     df_rotas = carregar_rotas(URL_ROTAS)
     df_drivers = carregar_motoristas(URL_DRIVERS)
-    df_interesse = carregar_interesse(URL_INTERESSE)
 
     if id_motorista not in set(df_drivers["ID"]):
         st.warning("⚠️ ID não encontrado na base de motoristas ativos.")
         st.stop()
 
-    resultado = df_rotas[df_rotas["ID"] == id_motorista]
     rotas_disponiveis = df_rotas[df_rotas["ID"] == ""]
-
-    if not resultado.empty:
-        for _, row in resultado.iterrows():
-            data_fmt = row["Data Exp."].strftime("%d/%m/%Y") if pd.notna(row["Data Exp."]) else "-"
-            st.markdown(f"""
-            <div class="card">
-                <h4>🚚 Rota: {row['Rota']}</h4>
-                <p>🏙️ Cidade: {row['Cidade']}</p>
-                <p>📍 Bairro: {row['Bairro']}</p>
-                <p>📅 Data: {data_fmt}</p>
-            </div>
-            """, unsafe_allow_html=True)
 
     if not rotas_disponiveis.empty:
         st.markdown("### 📦 Rotas disponíveis")
 
         for _, row in rotas_disponiveis.iterrows():
             data_fmt = row["Data Exp."].strftime("%d/%m/%Y") if pd.notna(row["Data Exp."]) else "-"
+            rota_key = f"{row['Rota']}_{row['Bairro']}_{data_fmt}"
 
             form_url = (
                 f"{GOOGLE_FORM_URL}"
@@ -193,14 +174,24 @@ if consultar:
                 f"&entry.1534916252=Tenho+Interesse"
             )
 
+            ja_clicou = rota_key in st.session_state.interesses
+            cor = "#2ecc71" if ja_clicou else "#ff7a00"
+            texto = "✔ Interesse registrado" if ja_clicou else "✋ Tenho interesse nesta rota"
+
             st.markdown(f"""
             <div class="card">
                 <p>📍 Bairro: {row['Bairro']}</p>
                 <p>🚗 Tipo Veículo: {row.get('Tipo Veiculo','Não informado')}</p>
                 <p>📅 Data da Expedição: {data_fmt}</p>
-                <a href="{form_url}" target="_blank">✋ Tenho interesse nesta rota</a>
+                <a href="{form_url}" target="_blank" style="color:{cor};">
+                    {texto}
+                </a>
             </div>
             """, unsafe_allow_html=True)
+
+            if not ja_clicou:
+                if st.session_state.get(f"click_{rota_key}", False):
+                    st.session_state.interesses.add(rota_key)
 
 # ================= RODAPÉ =================
 st.markdown("""
