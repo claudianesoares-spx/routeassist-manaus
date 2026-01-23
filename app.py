@@ -46,7 +46,6 @@ def registrar_acao(usuario, acao):
 # ================= URLs =================
 URL_ROTAS = "https://docs.google.com/spreadsheets/d/1F8HC2D8UxRc5R_QBdd-zWu7y6Twqyk3r0NTPN0HCWUI/export?format=csv&gid=1803149397"
 URL_DRIVERS = "https://docs.google.com/spreadsheets/d/1F8HC2D8UxRc5R_QBdd-zWu7y6Twqyk3r0NTPN0HCWUI/export?format=csv&gid=36116218"
-URL_INTERESSE = "https://docs.google.com/spreadsheets/d/1ux9UP_oJ9VTCTB_YMpvHr1VEPpFHdIBY2pudgehtTIE/export?format=csv&gid=1442170550"
 
 GOOGLE_FORM_URL = (
     "https://docs.google.com/forms/d/e/1FAIpQLSffKb0EPcHCRXv-XiHhgk-w2bTGbt179fJkr879jNdp-AbTxg/viewform"
@@ -57,7 +56,13 @@ GOOGLE_FORM_URL = (
 def carregar_rotas(url):
     df = pd.read_csv(url)
     df.columns = df.columns.str.strip()
-    df["ID"] = df["ID"].fillna("").astype(str).str.strip().replace({"nan": "", "-": ""})
+    df["ID"] = (
+        df["ID"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+        .replace({"nan": "", "-": ""})
+    )
     df["Data Exp."] = pd.to_datetime(df["Data Exp."], errors="coerce").dt.date
     return df
 
@@ -155,6 +160,25 @@ if st.button("🔍 Consultar rotas disponíveis"):
         st.warning("⚠️ ID não encontrado na base de motoristas ativos.")
         st.stop()
 
+    # ================= ROTAS ATRIBUÍDAS =================
+    rotas_atribuidas = df_rotas[df_rotas["ID"] == id_motorista]
+
+    if not rotas_atribuidas.empty:
+        st.markdown("### 🚚 Suas rotas atribuídas")
+
+        for _, row in rotas_atribuidas.iterrows():
+            data_fmt = row["Data Exp."].strftime("%d/%m/%Y") if pd.notna(row["Data Exp."]) else "-"
+
+            st.markdown(f"""
+            <div class="card">
+                <h4>🚚 Rota: {row['Rota']}</h4>
+                <p>🏙️ Cidade: {row['Cidade']}</p>
+                <p>📍 Bairro: {row['Bairro']}</p>
+                <p>📅 Data: {data_fmt}</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+    # ================= ROTAS DISPONÍVEIS =================
     rotas_disponiveis = df_rotas[df_rotas["ID"] == ""]
 
     if not rotas_disponiveis.empty:
@@ -189,9 +213,9 @@ if st.button("🔍 Consultar rotas disponíveis"):
             </div>
             """, unsafe_allow_html=True)
 
+            # Marca como clicado APÓS o primeiro refresh da sessão
             if not ja_clicou:
-                if st.session_state.get(f"click_{rota_key}", False):
-                    st.session_state.interesses.add(rota_key)
+                st.session_state.interesses.add(rota_key)
 
 # ================= RODAPÉ =================
 st.markdown("""
