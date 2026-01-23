@@ -52,26 +52,32 @@ URL_ROTAS = "https://docs.google.com/spreadsheets/d/1F8HC2D8UxRc5R_QBdd-zWu7y6Tw
 URL_DRIVERS = "https://docs.google.com/spreadsheets/d/1F8HC2D8UxRc5R_QBdd-zWu7y6Twqyk3r0NTPN0HCWUI/export?format=csv&gid=36116218"
 URL_INTERESSE = "https://docs.google.com/spreadsheets/d/1ux9UP_oJ9VTCTB_YMpvHr1VEPpFHdIBY2pudgehtTIE/export?format=csv&gid=1442170550"
 
-# ================= CARREGAMENTO =================
-@st.cache_resource(ttl=60)
-def carregar_dados():
-    df = pd.read_csv(URL_ROTAS)
+# ================= CACHE POR CAMADA =================
+@st.cache_data(ttl=120)
+def carregar_rotas(url_rotas: str) -> pd.DataFrame:
+    df = pd.read_csv(url_rotas)
     df.columns = df.columns.str.strip()
-    df["ID"] = df["ID"].astype(str).str.strip().replace({"nan": "", "-": ""})
+    df["ID"] = df["ID"].fillna("").astype(str).str.strip().replace({"nan": "", "-": ""})
     df["Data Exp."] = pd.to_datetime(df["Data Exp."], errors="coerce").dt.date
+    return df
 
-    df_drivers = pd.read_csv(URL_DRIVERS)
-    df_drivers.columns = df_drivers.columns.str.strip()
-    df_drivers["ID"] = df_drivers["ID"].astype(str).str.strip()
-    ids_ativos = set(df_drivers["ID"].dropna())
 
-    df_interesse = pd.read_csv(URL_INTERESSE)
-    df_interesse.columns = df_interesse.columns.str.strip()
-    df_interesse["ID"] = df_interesse["ID"].astype(str).str.strip()
-    df_interesse["Controle 01"] = df_interesse["Controle 01"].astype(str).str.strip()
-    df_interesse["Data Exp."] = pd.to_datetime(df_interesse["Data Exp."], errors="coerce").dt.date
+@st.cache_data(ttl=300)
+def carregar_motoristas(url_drivers: str) -> pd.DataFrame:
+    df = pd.read_csv(url_drivers)
+    df.columns = df.columns.str.strip()
+    df["ID"] = df["ID"].fillna("").astype(str).str.strip()
+    return df
 
-    return df, ids_ativos, df_interesse
+
+@st.cache_data(ttl=60)
+def carregar_interesse(url_interesse: str) -> pd.DataFrame:
+    df = pd.read_csv(url_interesse)
+    df.columns = df.columns.str.strip()
+    df["ID"] = df["ID"].fillna("").astype(str).str.strip()
+    df["Controle 01"] = df["Controle 01"].astype(str).str.strip()
+    df["Data Exp."] = pd.to_datetime(df["Data Exp."], errors="coerce").dt.date
+    return df
 
 # ================= ESTILO =================
 st.markdown("""
@@ -184,7 +190,11 @@ st.markdown("### 🔍 Consulta Operacional de Rotas")
 id_motorista = st.text_input("Digite seu ID de motorista")
 
 if id_motorista:
-    df, ids_ativos, df_interesse = carregar_dados()
+    df_rotas = carregar_rotas(URL_ROTAS)
+    df_drivers = carregar_motoristas(URL_DRIVERS)
+    df_interesse = carregar_interesse(URL_INTERESSE)
+
+    ids_ativos = set(df_drivers["ID"].dropna())
     id_motorista = id_motorista.strip()
 
     if id_motorista not in ids_ativos:
@@ -193,8 +203,8 @@ if id_motorista:
 
     st.info("🔄 Após clicar em 'Tenho interesse', atualize a página para visualizar a confirmação.")
 
-    resultado = df[df["ID"] == id_motorista]
-    rotas_disponiveis = df[df["ID"] == ""]
+    resultado = df_rotas[df_rotas["ID"] == id_motorista]
+    rotas_disponiveis = df_rotas[df_rotas["ID"] == ""]
 
     if not resultado.empty:
         for _, row in resultado.iterrows():
