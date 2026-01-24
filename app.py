@@ -49,24 +49,6 @@ def registrar_acao(usuario, acao):
 URL_ROTAS = "https://docs.google.com/spreadsheets/d/1F8HC2D8UxRc5R_QBdd-zWu7y6Twqyk3r0NTPN0HCWUI/export?format=csv&gid=1803149397"
 URL_DRIVERS = "https://docs.google.com/spreadsheets/d/1F8HC2D8UxRc5R_QBdd-zWu7y6Twqyk3r0NTPN0HCWUI/export?format=csv&gid=36116218"
 
-# ================= API GOOGLE SHEETS =================
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
-
-scope = ["https://www.googleapis.com/auth/spreadsheets"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
-gc = gspread.authorize(creds)
-SHEET_INTERESSE = "NOME_DA_PLANILHA_INTERESSE"  # Troque pelo nome real da planilha
-worksheet = gc.open(SHEET_INTERESSE).worksheet("Respostas ao formulário 1")
-
-def atualizar_placa(rota_key, placa):
-    dados = worksheet.get_all_records()
-    for i, row in enumerate(dados, start=2):
-        chave_linha = f"{row['Rota']}_{row['Bairro']}_{pd.to_datetime(row['Data Exp.']).strftime('%d/%m/%Y')}"
-        if chave_linha == rota_key:
-            worksheet.update_cell(i, worksheet.find("Placa").col, placa)
-            break
-
 # ================= FUNÇÕES =================
 def limpar_id(valor):
     if pd.isna(valor):
@@ -76,7 +58,7 @@ def limpar_id(valor):
 
 @st.cache_data(ttl=120)
 def carregar_rotas(url):
-    df = pd.read_csv(url)
+    df = pd.read_csv(url, encoding="latin-1")
     df.columns = df.columns.str.strip()
     df["ID"] = df["ID"].apply(limpar_id)
     df["Data Exp."] = pd.to_datetime(df["Data Exp."], errors="coerce").dt.date
@@ -84,7 +66,7 @@ def carregar_rotas(url):
 
 @st.cache_data(ttl=300)
 def carregar_motoristas(url):
-    df = pd.read_csv(url)
+    df = pd.read_csv(url, encoding="latin-1")
     df.columns = df.columns.str.strip()
     df["ID"] = df["ID"].apply(limpar_id)
     return df
@@ -163,7 +145,7 @@ with st.sidebar:
                 st.cache_data.clear()
                 st.success("Dados atualizados")
 
-st.markdown(f"### 📌 Status atual: **{config['status_site']}**")
+st.markdown(f"### 📌 Status atual: *{config['status_site']}*")
 st.divider()
 
 if config["status_site"] == "FECHADO":
@@ -227,9 +209,8 @@ if st.session_state.consultado and st.session_state.id_motorista:
             with st.expander(f"🏙️ {cidade}", expanded=False):
                 for _, row in df_cidade.iterrows():
                     data_fmt = row["Data Exp."].strftime("%d/%m/%Y") if pd.notna(row["Data Exp."]) else "-"
-                    rota_key = f"{row['Rota']}_{row['Bairro']}_{data_fmt}"
+                    rota_key = f"{row['Rota']}{row['Bairro']}{data_fmt}"
 
-                    # --- CARD COM ÍCONE DE VEÍCULO ---
                     icone = "🚗" if str(row["Tipo Veiculo"]).upper() == "PASSEIO" else "🏍️"
                     st.markdown(f"""
                     <div class="card">
@@ -241,7 +222,6 @@ if st.session_state.consultado and st.session_state.id_motorista:
                     </div>
                     """, unsafe_allow_html=True)
 
-                    # --- CAIXA PARA DIGITAR PLACA E BOTÃO ENVIAR ---
                     if rota_key in st.session_state.interesses:
                         st.success(f"✔ Interesse registrado — Placa: {st.session_state.placas.get(rota_key, '-')}")
                     else:
@@ -252,10 +232,6 @@ if st.session_state.consultado and st.session_state.id_motorista:
                         if st.button("📨 Enviar", key=f"enviar_{rota_key}"):
                             st.session_state.interesses.add(rota_key)
                             st.session_state.placas[rota_key] = placa or "N/S"
-
-                            # --- Atualiza na planilha ---
-                            atualizar_placa(rota_key, st.session_state.placas[rota_key])
-
                             st.success(f"✔ Interesse registrado — Placa: {st.session_state.placas[rota_key]}")
 
 # ================= RODAPÉ =================
