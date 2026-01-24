@@ -170,13 +170,17 @@ if st.session_state.consultado and st.session_state.id_motorista:
             data_fmt = row["Data Exp."].strftime("%d/%m/%Y") if pd.notna(row["Data Exp."]) else "-"
             st.markdown(f"""
             <div class="card">
-                <p><strong>Rota:</strong> {row['Rota']}</p>
-                <p>📍 Bairro: {row['Bairro']}</p>
-                <p>📅 Data: {data_fmt}</p>
+                <p><strong>ROTA:</strong> {row['Rota']}</p>
+                <p><strong>NOME:</strong> {row['Nome']}</p>
+                <p><strong>PLACA:</strong> {row['Placa']}</p>
+                <p><strong>TIPO DE VEÍCULO:</strong> {row['Tipo Veiculo']}</p>
+                <p><strong>DATA DA EXPED:</strong> {data_fmt}</p>
+                <p><strong>BAIRRO:</strong> {row['Bairro']}</p>
+                <p><strong>CIDADE:</strong> {row['Cidade']}</p>
             </div>
             """, unsafe_allow_html=True)
 
-    # ===== ROTAS DISPONÍVEIS (EXPANSÍVEL POR CIDADE) =====
+    # ===== ROTAS DISPONÍVEIS =====
     rotas_disp = df_rotas[df_rotas["ID"] == ""]
 
     if not rotas_disp.empty:
@@ -184,7 +188,6 @@ if st.session_state.consultado and st.session_state.id_motorista:
 
         for cidade, df_cidade in rotas_disp.groupby("Cidade"):
             with st.expander(f"🏙️ {cidade}", expanded=False):
-
                 for _, row in df_cidade.iterrows():
                     data_fmt = row["Data Exp."].strftime("%d/%m/%Y") if pd.notna(row["Data Exp."]) else "-"
                     rota_key = f"{row['Rota']}_{row['Bairro']}_{data_fmt}"
