@@ -88,19 +88,11 @@ st.markdown("""
 <style>
 .card {
     background-color: #ffffff;
-    padding: 18px;
+    padding: 20px;
     border-radius: 16px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.08);
     border-left: 6px solid #ff7a00;
-    margin-bottom: 14px;
-}
-.badge {
-    background:#fff3e8;
-    color:#ff7a00;
-    padding:3px 10px;
-    border-radius:12px;
-    font-size:0.75rem;
-    font-weight:600;
+    margin-bottom: 16px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -200,8 +192,6 @@ if st.session_state.consultado and st.session_state.id_motorista:
                     data_fmt = row["Data Exp."].strftime("%d/%m/%Y") if pd.notna(row["Data Exp."]) else "-"
                     rota_key = f"{row['Rota']}_{row['Bairro']}_{data_fmt}"
 
-                    icone = "🚗" if str(row["Tipo Veiculo"]).upper() == "PASSEIO" else "🏍️"
-
                     form_url = (
                         f"{GOOGLE_FORM_URL}?usp=pp_url"
                         f"&entry.392776957={id_motorista}"
@@ -211,13 +201,16 @@ if st.session_state.consultado and st.session_state.id_motorista:
                         f"&entry.1534916252=Tenho+Interesse"
                     )
 
+                    # --- CARD COM ÍCONE DE VEÍCULO ---
+                    icone = "🚗" if str(row["Tipo Veiculo"]).upper() == "PASSEIO" else "🏍️"
+
                     st.markdown(f"""
                     <div class="card">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <p style="margin:0;">📍 {row['Bairro']}</p>
-                            <span class="badge">{icone} {row['Tipo Veiculo']}</span>
+                            <span>📍 Bairro: {row['Bairro']}</span>
+                            <span>{icone} {row['Tipo Veiculo']}</span>
                         </div>
-                        <p>📅 {data_fmt}</p>
+                        <p>📅 Data: {data_fmt}</p>
                     </div>
                     """, unsafe_allow_html=True)
 
