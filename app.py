@@ -232,3 +232,4 @@ Concept & Development — Claudiane Vieira<br>
 Since Dec/2025
 </div>
 """, unsafe_allow_html=True)
+
