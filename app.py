@@ -83,34 +83,24 @@ if "id_motorista" not in st.session_state:
 if "consultado" not in st.session_state:
     st.session_state.consultado = False
 
-# ================= CSS (SHOPEE CLEAN) =================
+# ================= CSS =================
 st.markdown("""
 <style>
 .card {
     background-color: #ffffff;
-    padding: 12px 16px;
-    border-radius: 12px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
-    border-left: 4px solid #ff7a00;
-    margin-bottom: 12px;
-    font-size: 0.9rem;
-}
-.card p {
-    margin: 4px 0;
-}
-.card-topo {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 6px;
+    padding: 18px;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    border-left: 6px solid #ff7a00;
+    margin-bottom: 14px;
 }
 .badge {
-    background: #fff3e8;
-    color: #ff7a00;
-    padding: 3px 8px;
-    border-radius: 10px;
-    font-size: 0.75rem;
-    font-weight: 600;
+    background:#fff3e8;
+    color:#ff7a00;
+    padding:3px 10px;
+    border-radius:12px;
+    font-size:0.75rem;
+    font-weight:600;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -186,17 +176,15 @@ if st.session_state.consultado and st.session_state.id_motorista:
         st.markdown("### 🚚 Suas rotas atribuídas")
         for _, row in rotas_motorista.iterrows():
             data_fmt = row["Data Exp."].strftime("%d/%m/%Y") if pd.notna(row["Data Exp."]) else "-"
-            icone = "🚗" if str(row["Tipo Veiculo"]).upper() == "PASSEIO" else "🏍️"
-
             st.markdown(f"""
             <div class="card">
-                <div class="card-topo">
-                    <strong>ROTA {row['Rota']}</strong>
-                    <span class="badge">{icone} {row['Tipo Veiculo']}</span>
-                </div>
-                <p><strong>{row['Nome']}</strong> — {row['Placa']}</p>
-                <p>📍 {row['Bairro']} · {row['Cidade']}</p>
-                <p>📅 {data_fmt}</p>
+                <p><strong>ROTA:</strong> {row['Rota']}</p>
+                <p><strong>NOME:</strong> {row['Nome']}</p>
+                <p><strong>PLACA:</strong> {row['Placa']}</p>
+                <p><strong>TIPO DE VEÍCULO:</strong> {row['Tipo Veiculo']}</p>
+                <p><strong>DATA DA EXPED:</strong> {data_fmt}</p>
+                <p><strong>BAIRRO:</strong> {row['Bairro']}</p>
+                <p><strong>CIDADE:</strong> {row['Cidade']}</p>
             </div>
             """, unsafe_allow_html=True)
 
@@ -212,6 +200,8 @@ if st.session_state.consultado and st.session_state.id_motorista:
                     data_fmt = row["Data Exp."].strftime("%d/%m/%Y") if pd.notna(row["Data Exp."]) else "-"
                     rota_key = f"{row['Rota']}_{row['Bairro']}_{data_fmt}"
 
+                    icone = "🚗" if str(row["Tipo Veiculo"]).upper() == "PASSEIO" else "🏍️"
+
                     form_url = (
                         f"{GOOGLE_FORM_URL}?usp=pp_url"
                         f"&entry.392776957={id_motorista}"
@@ -223,7 +213,10 @@ if st.session_state.consultado and st.session_state.id_motorista:
 
                     st.markdown(f"""
                     <div class="card">
-                        <p>📍 {row['Bairro']}</p>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <p style="margin:0;">📍 {row['Bairro']}</p>
+                            <span class="badge">{icone} {row['Tipo Veiculo']}</span>
+                        </div>
                         <p>📅 {data_fmt}</p>
                     </div>
                     """, unsafe_allow_html=True)
