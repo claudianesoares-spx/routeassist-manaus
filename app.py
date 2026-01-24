@@ -3,8 +3,6 @@ import pandas as pd
 import json
 import os
 from datetime import datetime
-import gspread
-from google.oauth2.service_account import Credentials
 
 # ================= CONFIGURAÇÃO DA PÁGINA =================
 st.set_page_config(
@@ -47,23 +45,11 @@ def registrar_acao(usuario, acao):
     })
     save_config(config)
 
-# ================= GOOGLE SHEETS (INTERESSE) =================
-SHEET_ID_INTERESSE = "COLE_AQUI_O_ID_DA_PLANILHA"
-ABA_INTERESSE = "INTERESSES"
-SERVICE_ACCOUNT_FILE = "service_account.json"
-
-def registrar_interesse(dados):
-    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    creds = Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE, scopes=scopes
-    )
-    client = gspread.authorize(creds)
-    sheet = client.open_by_key(SHEET_ID_INTERESSE).worksheet(ABA_INTERESSE)
-    sheet.append_row(dados, value_input_option="USER_ENTERED")
-
 # ================= URLs =================
 URL_ROTAS = "https://docs.google.com/spreadsheets/d/1F8HC2D8UxRc5R_QBdd-zWu7y6Twqyk3r0NTPN0HCWUI/export?format=csv&gid=1803149397"
 URL_DRIVERS = "https://docs.google.com/spreadsheets/d/1F8HC2D8UxRc5R_QBdd-zWu7y6Twqyk3r0NTPN0HCWUI/export?format=csv&gid=36116218"
+
+GOOGLE_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSffKb0EPcHCRXv-XiHhgk-w2bTGbt179fJkr879jNdp-AbTxg/viewform"
 
 # ================= FUNÇÕES =================
 def limpar_id(valor):
@@ -72,7 +58,7 @@ def limpar_id(valor):
     valor = str(valor).strip()
     return "" if valor.lower() in ["nan", "-", "none"] else valor
 
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=120)
 def carregar_rotas(url):
     df = pd.read_csv(url)
     df.columns = df.columns.str.strip()
@@ -80,7 +66,7 @@ def carregar_rotas(url):
     df["Data Exp."] = pd.to_datetime(df["Data Exp."], errors="coerce").dt.date
     return df
 
-@st.cache_data(ttl=1800)
+@st.cache_data(ttl=300)
 def carregar_motoristas(url):
     df = pd.read_csv(url)
     df.columns = df.columns.str.strip()
@@ -100,47 +86,122 @@ if "id_motorista" not in st.session_state:
 if "consultado" not in st.session_state:
     st.session_state.consultado = False
 
+# ================= CSS =================
+st.markdown("""
+<style>
+.card {
+    background-color: #ffffff;
+    padding: 10px 12px;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+    border-left: 4px solid #ff7a00;
+    margin-bottom: 12px;
+    font-size: 14px;
+    line-height: 1.3;
+}
+.card p { margin: 4px 0; }
+.card .flex-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # ================= INTERFACE =================
 st.title("🧭 RouteAssist")
+st.markdown("Ferramenta de apoio operacional para alocação e redistribuição de rotas.")
 st.divider()
 
-df_rotas = carregar_rotas(URL_ROTAS)
-df_drivers = carregar_motoristas(URL_DRIVERS)
+# ================= ADMIN =================
+nivel = None
+with st.sidebar:
+    with st.expander("🔒 Área Administrativa"):
+        senha = st.text_input("Senha", type="password")
 
+        if senha == config["senha_master"]:
+            nivel = "MASTER"
+            st.success("Acesso MASTER liberado")
+        elif senha == "LPA2026":
+            nivel = "ADMIN"
+            st.success("Acesso ADMIN liberado")
+        elif senha:
+            st.error("Senha incorreta")
+
+        if nivel in ["ADMIN", "MASTER"]:
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("🔓 ABRIR"):
+                    config["status_site"] = "ABERTO"
+                    registrar_acao(nivel, "ABRIU CONSULTA")
+            with col2:
+                if st.button("🔒 FECHAR"):
+                    config["status_site"] = "FECHADO"
+                    registrar_acao(nivel, "FECHOU CONSULTA")
+
+            if st.button("🔄 Atualizar dados agora"):
+                st.cache_data.clear()
+                st.success("Dados atualizados")
+
+st.markdown(f"### 📌 Status atual: **{config['status_site']}**")
+st.divider()
+
+if config["status_site"] == "FECHADO":
+    st.warning("🚫 Consulta indisponível no momento.")
+    st.stop()
+
+# ================= CONSULTA =================
 st.markdown("### 🔍 Consulta Operacional de Rotas")
 
-id_input = st.text_input("Digite seu ID de motorista")
+id_input = st.text_input("Digite seu ID de motorista", value=st.session_state.id_motorista)
 
 if st.button("🔍 Consultar"):
     st.session_state.id_motorista = id_input.strip()
     st.session_state.consultado = True
 
 if st.session_state.consultado and st.session_state.id_motorista:
+
     id_motorista = st.session_state.id_motorista
+
+    df_rotas = carregar_rotas(URL_ROTAS)
+    df_drivers = carregar_motoristas(URL_DRIVERS)
+
+    if id_motorista not in set(df_drivers["ID"]):
+        st.warning("⚠️ ID não encontrado.")
+        st.stop()
 
     rotas_disp = df_rotas[df_rotas["ID"] == ""]
 
-    st.markdown("### 📦 Rotas disponíveis")
+    if not rotas_disp.empty:
+        st.markdown("### 📦 Rotas disponíveis")
 
-    for _, row in rotas_disp.iterrows():
-        rota_key = f"{row['Rota']}_{row['Bairro']}"
+        for cidade, df_cidade in rotas_disp.groupby("Cidade"):
+            with st.expander(f"🏙️ {cidade}", expanded=False):
+                for _, row in df_cidade.iterrows():
+                    data_fmt = row["Data Exp."].strftime("%d/%m/%Y") if pd.notna(row["Data Exp."]) else "-"
+                    rota_key = f"{row['Rota']}_{row['Bairro']}_{data_fmt}"
 
-        placa = st.text_input(
-            "Digite a placa",
-            key=f"placa_{rota_key}"
-        )
+                    st.markdown(f"""
+                    <div class="card">
+                        <p><strong>ROTA:</strong> {row['Rota']}</p>
+                        <p>📍 {row['Bairro']} — 📅 {data_fmt}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
 
-        if st.button("✋ Tenho interesse nesta rota", key=f"btn_{rota_key}"):
-            registrar_interesse([
-                id_motorista,
-                placa,
-                row["Rota"],
-                row["Bairro"],
-                row["Cidade"],
-                row["Tipo Veiculo"],
-                datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-            ])
-            st.success("✔ Interesse registrado com sucesso")
+                    if rota_key in st.session_state.interesses:
+                        st.success("✔ Interesse registrado")
+                        st.caption(f"Placa informada: {st.session_state.placas.get(rota_key, '-')}")
+                    else:
+                        with st.expander("✋ Tenho interesse nesta rota"):
+                            placa = st.text_input(
+                                "Digite a placa do veículo",
+                                key=f"placa_{rota_key}"
+                            )
+                            if st.button("📨 Enviar interesse", key=f"enviar_{rota_key}"):
+                                st.session_state.interesses.add(rota_key)
+                                st.session_state.placas[rota_key] = placa or "N/S"
+                                st.success("✔ Interesse registrado")
 
 # ================= RODAPÉ =================
 st.markdown("""
