@@ -58,7 +58,8 @@ def limpar_id(valor):
     valor = str(valor).strip()
     return "" if valor.lower() in ["nan", "-", "none"] else valor
 
-@st.cache_data(ttl=120)
+# 🔹 ROTAS → cache médio (10 min)
+@st.cache_data(ttl=600)
 def carregar_rotas(url):
     df = pd.read_csv(url)
     df.columns = df.columns.str.strip()
@@ -66,7 +67,8 @@ def carregar_rotas(url):
     df["Data Exp."] = pd.to_datetime(df["Data Exp."], errors="coerce").dt.date
     return df
 
-@st.cache_data(ttl=300)
+# 🔹 MOTORISTAS → cache alto (30 min)
+@st.cache_data(ttl=1800)
 def carregar_motoristas(url):
     df = pd.read_csv(url)
     df.columns = df.columns.str.strip()
@@ -88,31 +90,23 @@ st.markdown("""
 <style>
 .card {
     background-color: #ffffff;
-    padding: 10px 12px;          /* padding reduzido */
-    border-radius: 8px;          /* borda menos arredondada */
-    box-shadow: 0 2px 6px rgba(0,0,0,0.07); /* sombra mais leve */
+    padding: 10px 12px;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.07);
     border-left: 4px solid #ff7a00;
     margin-bottom: 12px;
-    font-size: 14px;             /* fonte menor */
-    line-height: 1.3;            /* menos espaçamento entre linhas */
+    font-size: 14px;
+    line-height: 1.3;
 }
-
-.card p {
-    margin: 4px 0;               /* reduz o espaçamento entre parágrafos */
-}
-
+.card p { margin: 4px 0; }
 .card .flex-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 4px;
 }
-
 @media only screen and (max-width: 480px) {
-    .card {
-        padding: 8px 10px;
-        font-size: 13px;
-    }
+    .card { padding: 8px 10px; font-size: 13px; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -159,6 +153,10 @@ if config["status_site"] == "FECHADO":
     st.warning("🚫 Consulta indisponível no momento.")
     st.stop()
 
+# ================= PRÉ-CARGA CONTROLADA =================
+df_rotas = carregar_rotas(URL_ROTAS)
+df_drivers = carregar_motoristas(URL_DRIVERS)
+
 # ================= CONSULTA =================
 st.markdown("### 🔍 Consulta Operacional de Rotas")
 
@@ -174,9 +172,6 @@ if st.button("🔍 Consultar"):
 if st.session_state.consultado and st.session_state.id_motorista:
 
     id_motorista = st.session_state.id_motorista
-
-    df_rotas = carregar_rotas(URL_ROTAS)
-    df_drivers = carregar_motoristas(URL_DRIVERS)
 
     if id_motorista not in set(df_drivers["ID"]):
         st.warning("⚠️ ID não encontrado.")
@@ -227,7 +222,6 @@ if st.session_state.consultado and st.session_state.id_motorista:
                         f"&entry.1534916252=Tenho+Interesse"
                     )
 
-                    # --- CARD COM ÍCONE DE VEÍCULO ---
                     icone = "🚗" if str(row["Tipo Veiculo"]).upper() == "PASSEIO" else "🏍️"
 
                     st.markdown(f"""
