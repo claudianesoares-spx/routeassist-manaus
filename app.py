@@ -49,6 +49,24 @@ def registrar_acao(usuario, acao):
 URL_ROTAS = "https://docs.google.com/spreadsheets/d/1F8HC2D8UxRc5R_QBdd-zWu7y6Twqyk3r0NTPN0HCWUI/export?format=csv&gid=1803149397"
 URL_DRIVERS = "https://docs.google.com/spreadsheets/d/1F8HC2D8UxRc5R_QBdd-zWu7y6Twqyk3r0NTPN0HCWUI/export?format=csv&gid=36116218"
 
+# ================= API GOOGLE SHEETS =================
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+
+scope = ["https://www.googleapis.com/auth/spreadsheets"]
+creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+gc = gspread.authorize(creds)
+SHEET_INTERESSE = "NOME_DA_PLANILHA_INTERESSE"  # Troque pelo nome real da planilha
+worksheet = gc.open(SHEET_INTERESSE).worksheet("Respostas ao formulário 1")
+
+def atualizar_placa(rota_key, placa):
+    dados = worksheet.get_all_records()
+    for i, row in enumerate(dados, start=2):
+        chave_linha = f"{row['Rota']}_{row['Bairro']}_{pd.to_datetime(row['Data Exp.']).strftime('%d/%m/%Y')}"
+        if chave_linha == rota_key:
+            worksheet.update_cell(i, worksheet.find("Placa").col, placa)
+            break
+
 # ================= FUNÇÕES =================
 def limpar_id(valor):
     if pd.isna(valor):
@@ -234,6 +252,10 @@ if st.session_state.consultado and st.session_state.id_motorista:
                         if st.button("📨 Enviar", key=f"enviar_{rota_key}"):
                             st.session_state.interesses.add(rota_key)
                             st.session_state.placas[rota_key] = placa or "N/S"
+
+                            # --- Atualiza na planilha ---
+                            atualizar_placa(rota_key, st.session_state.placas[rota_key])
+
                             st.success(f"✔ Interesse registrado — Placa: {st.session_state.placas[rota_key]}")
 
 # ================= RODAPÉ =================
