@@ -83,16 +83,36 @@ if "id_motorista" not in st.session_state:
 if "consultado" not in st.session_state:
     st.session_state.consultado = False
 
-# ================= CSS =================
+# ================= CSS COMPACTO =================
 st.markdown("""
 <style>
 .card {
     background-color: #ffffff;
-    padding: 20px;
-    border-radius: 16px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-    border-left: 6px solid #ff7a00;
-    margin-bottom: 16px;
+    padding: 10px 12px;          /* padding reduzido */
+    border-radius: 8px;          /* borda menos arredondada */
+    box-shadow: 0 2px 6px rgba(0,0,0,0.07); /* sombra mais leve */
+    border-left: 4px solid #ff7a00;
+    margin-bottom: 12px;
+    font-size: 14px;             /* fonte menor */
+    line-height: 1.3;            /* menos espaçamento entre linhas */
+}
+
+.card p {
+    margin: 4px 0;               /* reduz o espaçamento entre parágrafos */
+}
+
+.card .flex-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+@media only screen and (max-width: 480px) {
+    .card {
+        padding: 8px 10px;
+        font-size: 13px;
+    }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -170,13 +190,19 @@ if st.session_state.consultado and st.session_state.id_motorista:
             data_fmt = row["Data Exp."].strftime("%d/%m/%Y") if pd.notna(row["Data Exp."]) else "-"
             st.markdown(f"""
             <div class="card">
-                <p><strong>ROTA:</strong> {row['Rota']}</p>
+                <div class="flex-row">
+                    <span><strong>ROTA:</strong> {row['Rota']}</span>
+                    <span><strong>PLACA:</strong> {row['Placa']}</span>
+                </div>
                 <p><strong>NOME:</strong> {row['Nome']}</p>
-                <p><strong>PLACA:</strong> {row['Placa']}</p>
-                <p><strong>TIPO DE VEÍCULO:</strong> {row['Tipo Veiculo']}</p>
-                <p><strong>DATA DA EXPED:</strong> {data_fmt}</p>
-                <p><strong>BAIRRO:</strong> {row['Bairro']}</p>
-                <p><strong>CIDADE:</strong> {row['Cidade']}</p>
+                <div class="flex-row">
+                    <span><strong>TIPO:</strong> {row['Tipo Veiculo']}</span>
+                    <span><strong>DATA:</strong> {data_fmt}</span>
+                </div>
+                <div class="flex-row">
+                    <span><strong>BAIRRO:</strong> {row['Bairro']}</span>
+                    <span><strong>CIDADE:</strong> {row['Cidade']}</span>
+                </div>
             </div>
             """, unsafe_allow_html=True)
 
@@ -206,7 +232,7 @@ if st.session_state.consultado and st.session_state.id_motorista:
 
                     st.markdown(f"""
                     <div class="card">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div class="flex-row">
                             <span>📍 Bairro: {row['Bairro']}</span>
                             <span>{icone} {row['Tipo Veiculo']}</span>
                         </div>
@@ -232,4 +258,3 @@ Concept & Development — Claudiane Vieira<br>
 Since Dec/2025
 </div>
 """, unsafe_allow_html=True)
-
