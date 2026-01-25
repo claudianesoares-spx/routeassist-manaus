@@ -3,8 +3,6 @@ import pandas as pd
 import json
 import os
 from datetime import datetime
-import gspread
-from google.oauth2.service_account import Credentials
 
 # ================= CONFIGURAÇÃO DA PÁGINA =================
 st.set_page_config(
@@ -51,6 +49,8 @@ def registrar_acao(usuario, acao):
 URL_ROTAS = "https://docs.google.com/spreadsheets/d/1F8HC2D8UxRc5R_QBdd-zWu7y6Twqyk3r0NTPN0HCWUI/export?format=csv&gid=1803149397"
 URL_DRIVERS = "https://docs.google.com/spreadsheets/d/1F8HC2D8UxRc5R_QBdd-zWu7y6Twqyk3r0NTPN0HCWUI/export?format=csv&gid=36116218"
 
+GOOGLE_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSffKb0EPcHCRXv-XiHhgk-w2bTGbt179fJkr879jNdp-AbTxg/viewform"
+
 # ================= FUNÇÕES =================
 def limpar_id(valor):
     if pd.isna(valor):
@@ -60,7 +60,7 @@ def limpar_id(valor):
 
 @st.cache_data(ttl=120)
 def carregar_rotas(url):
-    df = pd.read_csv(url, encoding="utf-8-sig")  # <<< AJUSTE DE ACENTO
+    df = pd.read_csv(url)
     df.columns = df.columns.str.strip()
     df["ID"] = df["ID"].apply(limpar_id)
     df["Data Exp."] = pd.to_datetime(df["Data Exp."], errors="coerce").dt.date
@@ -68,29 +68,14 @@ def carregar_rotas(url):
 
 @st.cache_data(ttl=300)
 def carregar_motoristas(url):
-    df = pd.read_csv(url, encoding="utf-8-sig")  # <<< AJUSTE DE ACENTO
+    df = pd.read_csv(url)
     df.columns = df.columns.str.strip()
     df["ID"] = df["ID"].apply(limpar_id)
     return df
 
-# ================= GOOGLE SHEETS (ESCRITA) =================
-def registrar_interesse_sheets(dados):
-    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    creds = Credentials.from_service_account_info(
-        st.secrets["google_service_account"],
-        scopes=scopes
-    )
-    gc = gspread.authorize(creds)
-    sh = gc.open("INTERESSE_DRIVERS")
-    aba = sh.worksheet("Resposta")
-    aba.append_row(dados, value_input_option="USER_ENTERED")
-
 # ================= SESSION STATE =================
 if "interesses" not in st.session_state:
     st.session_state.interesses = set()
-
-if "placas" not in st.session_state:
-    st.session_state.placas = {}
 
 if "id_motorista" not in st.session_state:
     st.session_state.id_motorista = ""
@@ -98,8 +83,39 @@ if "id_motorista" not in st.session_state:
 if "consultado" not in st.session_state:
     st.session_state.consultado = False
 
-# ================= CSS =================
-st.markdown("""<style>/* SEU CSS INTACTO */</style>""", unsafe_allow_html=True)
+# ================= CSS COMPACTO =================
+st.markdown("""
+<style>
+.card {
+    background-color: #ffffff;
+    padding: 10px 12px;          /* padding reduzido */
+    border-radius: 8px;          /* borda menos arredondada */
+    box-shadow: 0 2px 6px rgba(0,0,0,0.07); /* sombra mais leve */
+    border-left: 4px solid #ff7a00;
+    margin-bottom: 12px;
+    font-size: 14px;             /* fonte menor */
+    line-height: 1.3;            /* menos espaçamento entre linhas */
+}
+
+.card p {
+    margin: 4px 0;               /* reduz o espaçamento entre parágrafos */
+}
+
+.card .flex-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+@media only screen and (max-width: 480px) {
+    .card {
+        padding: 8px 10px;
+        font-size: 13px;
+    }
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ================= INTERFACE =================
 st.title("🧭 RouteAssist")
@@ -136,7 +152,7 @@ with st.sidebar:
                 st.cache_data.clear()
                 st.success("Dados atualizados")
 
-st.markdown(f"### 📌 Status atual: *{config['status_site']}*")
+st.markdown(f"### 📌 Status atual: **{config['status_site']}**")
 st.divider()
 
 if config["status_site"] == "FECHADO":
@@ -146,13 +162,17 @@ if config["status_site"] == "FECHADO":
 # ================= CONSULTA =================
 st.markdown("### 🔍 Consulta Operacional de Rotas")
 
-id_input = st.text_input("Digite seu ID de motorista", value=st.session_state.id_motorista)
+id_input = st.text_input(
+    "Digite seu ID de motorista",
+    value=st.session_state.id_motorista
+)
 
 if st.button("🔍 Consultar"):
     st.session_state.id_motorista = id_input.strip()
     st.session_state.consultado = True
 
 if st.session_state.consultado and st.session_state.id_motorista:
+
     id_motorista = st.session_state.id_motorista
 
     df_rotas = carregar_rotas(URL_ROTAS)
@@ -162,20 +182,79 @@ if st.session_state.consultado and st.session_state.id_motorista:
         st.warning("⚠️ ID não encontrado.")
         st.stop()
 
+    # ===== ROTAS DO MOTORISTA =====
+    rotas_motorista = df_rotas[df_rotas["ID"] == id_motorista]
+    if not rotas_motorista.empty:
+        st.markdown("### 🚚 Suas rotas atribuídas")
+        for _, row in rotas_motorista.iterrows():
+            data_fmt = row["Data Exp."].strftime("%d/%m/%Y") if pd.notna(row["Data Exp."]) else "-"
+            st.markdown(f"""
+            <div class="card">
+                <div class="flex-row">
+                    <span><strong>ROTA:</strong> {row['Rota']}</span>
+                    <span><strong>PLACA:</strong> {row['Placa']}</span>
+                </div>
+                <p><strong>NOME:</strong> {row['Nome']}</p>
+                <div class="flex-row">
+                    <span><strong>TIPO:</strong> {row['Tipo Veiculo']}</span>
+                    <span><strong>DATA:</strong> {data_fmt}</span>
+                </div>
+                <div class="flex-row">
+                    <span><strong>BAIRRO:</strong> {row['Bairro']}</span>
+                    <span><strong>CIDADE:</strong> {row['Cidade']}</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    # ===== ROTAS DISPONÍVEIS =====
     rotas_disp = df_rotas[df_rotas["ID"] == ""]
 
-    for _, row in rotas_disp.iterrows():
-        rota_key = f"{row['Rota']}{row['Bairro']}{row['Cidade']}"
+    if not rotas_disp.empty:
+        st.markdown("### 📦 Rotas disponíveis")
 
-        placa = st.text_input("Digite a placa do veículo", key=f"placa_{rota_key}")
+        for cidade, df_cidade in rotas_disp.groupby("Cidade"):
+            with st.expander(f"🏙️ {cidade}", expanded=False):
+                for _, row in df_cidade.iterrows():
+                    data_fmt = row["Data Exp."].strftime("%d/%m/%Y") if pd.notna(row["Data Exp."]) else "-"
+                    rota_key = f"{row['Rota']}_{row['Bairro']}_{data_fmt}"
 
-        if st.button("📨 Enviar", key=f"enviar_{rota_key}"):
-            registrar_interesse_sheets([
-                datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
-                id_motorista,
-                row["Rota"],
-                row["Bairro"],
-                row["Cidade"],
-                placa or "N/S"
-            ])
-            st.success("✔ Interesse registrado com sucesso")
+                    form_url = (
+                        f"{GOOGLE_FORM_URL}?usp=pp_url"
+                        f"&entry.392776957={id_motorista}"
+                        f"&entry.1682939517={row['Rota']}"
+                        f"&entry.625563351={row['Cidade']}"
+                        f"&entry.1284288730={row['Bairro']}"
+                        f"&entry.1534916252=Tenho+Interesse"
+                    )
+
+                    # --- CARD COM ÍCONE DE VEÍCULO ---
+                    icone = "🚗" if str(row["Tipo Veiculo"]).upper() == "PASSEIO" else "🏍️"
+
+                    st.markdown(f"""
+                    <div class="card">
+                        <div class="flex-row">
+                            <span>📍 Bairro: {row['Bairro']}</span>
+                            <span>{icone} {row['Tipo Veiculo']}</span>
+                        </div>
+                        <p>📅 Data: {data_fmt}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    if rota_key in st.session_state.interesses:
+                        st.success("✔ Interesse registrado")
+                        st.markdown(f"[👉 Abrir formulário]({form_url})")
+                    else:
+                        if st.button("✋ Tenho interesse nesta rota", key=f"btn_{rota_key}"):
+                            st.session_state.interesses.add(rota_key)
+                            st.success("✔ Interesse registrado")
+                            st.markdown(f"[👉 Abrir formulário]({form_url})")
+
+# ================= RODAPÉ =================
+st.markdown("""
+<hr>
+<div style="text-align:center; color:#888; font-size:0.85em;">
+<strong>RouteAssist</strong><br>
+Concept & Development — Claudiane Vieira<br>
+Since Dec/2025
+</div>
+""", unsafe_allow_html=True)
